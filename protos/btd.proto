@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "./btd;ld";
+
+service UsedBuildTools {
+    rpc GetBuildTools(BuildToolRequest) returns (BuildToolResponse);
+}
+
+message BuildToolRequest {
+    string projectID = 1;
+    string commitHash = 2;
+}
+
+message BuildToolResponse {
+    repeated string buildTools = 1;
+}

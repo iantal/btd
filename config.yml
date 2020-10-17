@@ -1,0 +1,14 @@
+---
+types:
+    - name: maven
+      files:
+      - pom.xml
+    - name: gradle
+      files:
+      - build.gradle
+    - name: sbt
+      files:
+      - build.sbt
+    - name: npm
+      files:
+      - package.json
