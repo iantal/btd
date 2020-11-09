@@ -9,14 +9,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/iantal/btd/internal/config"
 	"github.com/iantal/btd/internal/files"
+	"github.com/iantal/btd/internal/util"
+	"github.com/sirupsen/logrus"
 )
 
 // Detector defines a service for detecting build tool types
 type Detector struct {
-	log      hclog.Logger
+	log      *util.StandardLogger
 	basePath string
 	store    files.Storage
 	bTypes   config.Types
@@ -24,10 +25,10 @@ type Detector struct {
 }
 
 // NewDetector creates a Detector
-func NewDetector(log hclog.Logger, basePath, rmHost string, store files.Storage) *Detector {
+func NewDetector(log *util.StandardLogger, basePath, rmHost string, store files.Storage) *Detector {
 	conf, err := config.LoadConfig("/go/config.yml")
 	if err != nil {
-		log.Error("Could not load config file", "err", err)
+		log.WithField("error", err).Error("Could not load config file")
 	}
 
 	return &Detector{log, basePath, store, conf, rmHost}
@@ -40,25 +41,33 @@ func (d *Detector) Detect(projectID, commit string) ([]string, error) {
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
 		err := d.downloadRepository(projectID, commit)
 		if err != nil {
-			d.log.Error("Could not download bundled repository", "projectID", projectID, "commit", commit, "err", err)
+			d.log.WithFields(logrus.Fields{
+				"projectID": projectID,
+				"commit":    commit,
+				"error":     err,
+			}).Error("Could not download bundled repository")
 			return []string{}, fmt.Errorf("Could not download bundled repository for %s", projectID)
 		}
 	}
 
-	bp := projectID + ".bundle"
-	srcPath := d.store.FullPath(filepath.Join(projectID, "bundle", bp))
-	destPath := d.store.FullPath(filepath.Join(projectID, "unbundle"))
+	bp := commit + ".bundle"
+	srcPath := d.store.FullPath(filepath.Join(projectID, commit, "bundle", bp))
+	destPath := d.store.FullPath(filepath.Join(projectID, commit, "unbundle"))
 
 	if _, err := os.Stat(destPath); os.IsNotExist(err) {
 		err := d.store.Unbundle(srcPath, destPath)
 		if err != nil {
-			d.log.Error("Could not unbundle repository", "projectID", projectID, "commit", commit, "err", err)
+			d.log.WithFields(logrus.Fields{
+				"projectID": projectID,
+				"commit":    commit,
+				"error":     err,
+			}).Error("Could not unbundle repository")
 			return []string{}, fmt.Errorf("Could not unbundle repository for %s", projectID)
 		}
 	}
 
 	r := []string{}
-	dir := filepath.Join(destPath, projectID)
+	dir := filepath.Join(destPath, commit)
 	for _, t := range d.bTypes.BuildTypes {
 		for _, file := range t.Files {
 			if d.search(file, dir) {
@@ -80,27 +89,32 @@ func (d *Detector) downloadRepository(projectID, commit string) error {
 		return fmt.Errorf("Expected error code 200 got %d", resp.StatusCode)
 	}
 
-	d.log.Info("Content-Dispozition", "file", resp.Header.Get("Content-Disposition"))
+	d.log.WithField("file", resp.Header.Get("Content-Disposition")).Info("Content-Dispozition")
 
-	d.save(projectID, resp.Body)
+	d.save(projectID, commit, resp.Body)
 	resp.Body.Close()
 
 	return nil
 }
 
-func (d *Detector) save(projectID string, r io.ReadCloser) error {
-	d.log.Info("Save project - storage", "projectID", projectID)
+func (d *Detector) save(projectID, commit string, r io.ReadCloser) {
+	d.log.WithFields(logrus.Fields{
+		"projectID": projectID,
+		"commit":    commit,
+	}).Info("Save project to storage")
 
-	bp := projectID + ".bundle"
-	fp := filepath.Join(projectID, "bundle", bp)
+	bp := commit + ".bundle"
+	fp := filepath.Join(projectID, commit, "bundle", bp)
 	err := d.store.Save(fp, r)
 
 	if err != nil {
-		d.log.Error("Unable to save file", "error", err)
-		return fmt.Errorf("Unable to save file %s", err)
+		d.log.WithFields(logrus.Fields{
+			"projectID": projectID,
+			"commit":    commit,
+			"error":     err,
+		}).Error("Unable to save file")
+		return
 	}
-
-	return nil
 }
 
 func (d *Detector) search(file, directory string) bool {
@@ -113,7 +127,7 @@ func (d *Detector) search(file, directory string) bool {
 			}
 
 			if strings.Contains(path, file) {
-				d.log.Info("Found file", "name", file)
+				d.log.WithField("name", file).Info("Found file")
 				found = true
 			}
 
