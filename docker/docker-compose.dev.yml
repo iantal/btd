@@ -3,7 +3,9 @@ version: '3.8'
 services: 
     btd:
         container_name: btd
-        image: micky0000/seclens:v1.0.0-btd
+        build:
+            context: ../
+            dockerfile: docker/Dockerfile
         environment: 
             BASE_PATH: "/opt/data"
             RM_HOST: "rm:8005"

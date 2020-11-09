@@ -5,9 +5,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/iantal/btd/internal/files"
 	"github.com/iantal/btd/internal/server"
+	"github.com/iantal/btd/internal/util"
 	protos "github.com/iantal/btd/protos/btd"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -16,7 +16,7 @@ import (
 
 func main() {
 	viper.AutomaticEnv()
-	log := hclog.Default()
+	log := util.NewLogger()
 
 	// create a new gRPC server, use WithInsecure to allow http connections
 	gs := grpc.NewServer()
@@ -26,7 +26,7 @@ func main() {
 
 	stor, err := files.NewLocal(bp, 1024*1000*1000*5)
 	if err != nil {
-		log.Error("Unable to create storage", "error", err)
+		log.WithField("error", err).Error("Unable to create storage")
 		os.Exit(1)
 	}
 
@@ -42,11 +42,11 @@ func main() {
 	// create a TCP socket for inbound server connections
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", 8004))
 	if err != nil {
-		log.Error("Unable to create listener", "error", err)
+		log.WithField("error", err).Error("Unable to create listener")
 		os.Exit(1)
 	}
 
-	log.Info("Starting server", "bind_address", l.Addr().String())
+	log.Info("Starting server bind_address ", l.Addr().String())
 	// listen for requests
 	gs.Serve(l)
 }
