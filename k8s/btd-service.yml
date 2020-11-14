@@ -5,9 +5,7 @@ metadata:
 spec:
   selector:
     app: btd
-  type: LoadBalancer
   ports:
     - protocol: TCP
       port: 8004
       targetPort: 8004
-      nodePort: 30001
