@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: btd-deployment
+  labels:
+    app: btd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: btd
+  template:
+    metadata:
+      labels:
+        app: btd
+    spec:
+      imagePullSecrets:
+        - name: dockerregistrykey
+      containers:
+        - name: btd
+          image: micky0000/seclens:v1.0.2-btd
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: 8004
+          env:
+            - name: RM_HOST
+              value: "rm-service:8005"
