@@ -1,20 +1,22 @@
 FROM golang:alpine as builder
+
 ENV GO111MODULE="" \
     CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64
+    GOARCH=amd64 \
+    GOPRIVATE=github.com/iantal
 
 WORKDIR /build
 
-COPY go.mod .
-COPY go.sum .
-RUN apk add --no-cache git
-
-ARG DOCKER_NETRC
-RUN echo "${DOCKER_NETRC}" > ~/.netrc
-RUN go mod download
-
 COPY . .
+
+RUN apk add git
+
+ARG GT
+
+RUN echo ${GT}
+RUN git config --global url."https://golang:${GT}@github.com".insteadOf "https://github.com"
+
 RUN go build -o main .
 
 WORKDIR /dist
